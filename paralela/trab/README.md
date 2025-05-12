@@ -1,0 +1,1 @@
+tem que ter a matriz toda 
