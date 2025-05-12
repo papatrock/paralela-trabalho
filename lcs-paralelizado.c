@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <omp.h>
+#include <math.h>
 
 #ifndef max
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-#define NUM_THREADS 16
+#define NUM_THREADS 4
 
 typedef unsigned short mtype;
 
@@ -68,6 +69,7 @@ mtype **allocateScoreMatrix(int sizeA, int sizeB)
   int i;
   // Allocate memory for LCS score matrix
   mtype **scoreMatrix = (mtype **)malloc((sizeB + 1) * sizeof(mtype *));
+#pragma omp parallel for
   for (i = 0; i < (sizeB + 1); i++)
     scoreMatrix[i] = (mtype *)malloc((sizeA + 1) * sizeof(mtype));
   return scoreMatrix;
@@ -76,37 +78,96 @@ mtype **allocateScoreMatrix(int sizeA, int sizeB)
 void initScoreMatrix(mtype **scoreMatrix, int sizeA, int sizeB)
 {
   int i, j;
-  // Fill first line of LCS score matrix with zeroes
-  for (j = 0; j < (sizeA + 1); j++)
-    scoreMatrix[0][j] = 0;
+// Fill first line of LCS score matrix with zeroes
+#pragma omp parallel
+  {
+#pragma omp for
+    for (j = 0; j < (sizeA + 1); j++)
+      scoreMatrix[0][j] = 0;
 
-  // Do the same for the first collumn
-  for (i = 1; i < (sizeB + 1); i++)
-    scoreMatrix[i][0] = 0;
+// Do the same for the first collumn
+#pragma omp for
+    for (i = 1; i < (sizeB + 1); i++)
+      scoreMatrix[i][0] = 0;
+  }
+}
+
+int calculateBlockSize(int sizeA, int sizeB, int numThreads)
+{
+  int totalElements = sizeA * sizeB;
+  int elementsPerThread = totalElements / numThreads;
+  int blockSize = (int)sqrt(elementsPerThread);
+
+  if (blockSize > sizeA || blockSize > sizeB)
+  {
+    blockSize = (sizeA < sizeB) ? sizeA : sizeB;
+  }
+
+  // if (blockSize < 16)
+  //   blockSize = 16;
+
+  return (blockSize > 0) ? blockSize : 1; // sem tamanho minimo
+
+  // return blockSize;
 }
 
 int LCS(mtype **scoreMatrix, int sizeA, int sizeB, char *seqA, char *seqB)
 {
-  int i, j, d;
+  int bi, bj, i, j;
 
-  for (int d = 2; d <= sizeA + sizeB; ++d)
+  int numThreads = omp_get_max_threads();
+  int blockSize = calculateBlockSize(sizeA, sizeB, numThreads);
+
+  int numBlockRows = (sizeB + blockSize - 1) / blockSize; // (7+4-1) / 4  = 2
+  int numBlockCols = (sizeA + blockSize - 1) / blockSize; // (10 + 4 - 1) / 4 = 3
+  int totalDiagonals = numBlockRows + numBlockCols - 1;   // 4 + 10 - 1
+
+  for (int d = 0; d < totalDiagonals; ++d) // percorre as diagonais
   {
-
-#pragma omp parallel for private(i, j)
-    for (i = 1; i <= sizeB; ++i)
+#pragma omp parallel for private(bi, bj, i, j) schedule(dynamic)
+    for (bi = 0; bi <= d; ++bi) // uma thread pega o 0, outra a 1 .... até d
     {
-      j = d - i;
-      if (j >= 1 && j <= sizeA)
+
+      bj = d - bi;
+
+      if (bi < numBlockRows && bj < numBlockCols)
       {
-        if (seqA[j - 1] == seqB[i - 1])
-          scoreMatrix[i][j] = scoreMatrix[i - 1][j - 1] + 1;
-        else
-          scoreMatrix[i][j] = max(scoreMatrix[i - 1][j], scoreMatrix[i][j - 1]);
+        int startRow = bi * blockSize + 1;
+        int endRow = (bi + 1) * blockSize;
+        int startCol = bj * blockSize + 1;
+        int endCol = (bj + 1) * blockSize;
+
+        if (endRow > sizeB)
+          endRow = sizeB;
+        if (endCol > sizeA)
+          endCol = sizeA;
+
+#ifdef DEBUGMATRIX
+        printf("thread:%d processando o bloco: bi=%d bj=%d, linhas %d–%d, colunas %d–%d\n", omp_get_thread_num(), bi, bj, startRow, endRow, startCol, endCol);
+#endif
+
+        for (i = startRow; i <= endRow; ++i)
+        {
+          for (j = startCol; j <= endCol; ++j)
+          {
+#ifdef DEBUGMATRIX
+            printf("%c == %c ?\n", seqA[j - 1], seqB[i - 1]);
+#endif
+            if (seqA[j - 1] == seqB[i - 1])
+              scoreMatrix[i][j] = scoreMatrix[i - 1][j - 1] + 1;
+            else
+              scoreMatrix[i][j] = (scoreMatrix[i - 1][j] > scoreMatrix[i][j - 1])
+                                      ? scoreMatrix[i - 1][j]
+                                      : scoreMatrix[i][j - 1];
+          }
+        }
       }
     }
   }
+
   return scoreMatrix[sizeB][sizeA];
 }
+
 void printMatrix(char *seqA, char *seqB, mtype **scoreMatrix, int sizeA,
                  int sizeB)
 {
@@ -142,13 +203,16 @@ void printMatrix(char *seqA, char *seqB, mtype **scoreMatrix, int sizeA,
 void freeScoreMatrix(mtype **scoreMatrix, int sizeB)
 {
   int i;
+#pragma omp parallel for
   for (i = 0; i < (sizeB + 1); i++)
     free(scoreMatrix[i]);
   free(scoreMatrix);
 }
 
+// gcc -DDEBUGMATRIX -O3 -fopenmp lcs-paralelizado.c -o lcs-para
 int main(int argc, char **argv)
 {
+  omp_set_num_threads(NUM_THREADS);
   // sequence pointers for both sequences
   char *seqA, *seqB;
 
@@ -176,12 +240,12 @@ int main(int argc, char **argv)
   /* if you wish to see the entire score matrix,
    for debug purposes, define DEBUGMATRIX. */
 #ifdef DEBUGMATRIX
-  printMatrix(seqA, seqB, scoreMatrix, sizeA, sizeB);
+  // printMatrix(seqA, seqB, scoreMatrix, sizeA, sizeB);
 #endif
 
   // print score
   double time = end - start;
-  printf("\nScore: %d tempo:%f\n", score, time);
+  printf("\nScore: %d tempo:%0.8f\n", score, time);
 
   // free score matrix
   freeScoreMatrix(scoreMatrix, sizeB);
