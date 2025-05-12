@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <omp.h>
 
 #ifndef max
 #define max(a, b) (((a) > (b)) ? (a) : (b))
@@ -160,9 +161,7 @@ int main(int argc, char **argv)
 
   // find out sizes
   sizeA = strlen(seqA);
-  printf("sizeA: %d\n", sizeA);
   sizeB = strlen(seqB);
-  printf("sizeB: %d\n", sizeB);
   // allocate LCS score matrix
   mtype **scoreMatrix = allocateScoreMatrix(sizeA, sizeB);
 
@@ -170,8 +169,9 @@ int main(int argc, char **argv)
   initScoreMatrix(scoreMatrix, sizeA, sizeB);
 
   // fill up the rest of the matrix and return final score (element locate at the last line and collumn)
+  double inicio = omp_get_wtime();
   mtype score = LCS(scoreMatrix, sizeA, sizeB, seqA, seqB);
-
+  double fim = omp_get_wtime();
   /* if you wish to see the entire score matrix,
    for debug purposes, define DEBUGMATRIX. */
 #ifdef DEBUGMATRIX
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 #endif
 
   // print score
-  printf("\nScore: %d\n", score);
+  printf("\nScore: %d tempo: %f\n", score, fim - inicio);
 
   // free score matrix
   freeScoreMatrix(scoreMatrix, sizeB);
