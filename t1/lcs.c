@@ -157,8 +157,8 @@ int main(int argc, char **argv)
   int sizeA, sizeB;
 
   // read both sequences
-  seqA = read_seq("fileA.in");
-  seqB = read_seq("fileB.in");
+  seqA = read_seq(argv[1]);
+  seqB = read_seq(argv[2]);
 
   // find out sizes
   sizeA = strlen(seqA);
@@ -181,8 +181,8 @@ int main(int argc, char **argv)
 
   // print score
   double tempoFinal = fim - inicio;
-  printf("\nScore: %d tempo: %0.8f\n", score, tempoFinal);
-
+  // printf("\nScore: %d tempo: %0.8f\n", score, tempoFinal);
+  printf("%0.8f", tempoFinal);
   // free score matrix
   freeScoreMatrix(scoreMatrix, sizeB);
 

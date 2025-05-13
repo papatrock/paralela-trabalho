@@ -8,7 +8,7 @@
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-#define NUM_THREADS 4
+#define NUM_THREADS 16
 
 typedef unsigned short mtype;
 
@@ -209,7 +209,7 @@ void freeScoreMatrix(mtype **scoreMatrix, int sizeB)
   free(scoreMatrix);
 }
 
-// gcc -DDEBUGMATRIX -O3 -fopenmp lcs-paralelizado.c -o lcs-para
+// gcc -O3 -DDEBUGMATRIX -fopenmp lcs-paralelizado.c -o lcs-para -lm
 int main(int argc, char **argv)
 {
   omp_set_num_threads(NUM_THREADS);
@@ -220,8 +220,8 @@ int main(int argc, char **argv)
   int sizeA, sizeB;
 
   // read both sequences
-  seqA = read_seq("fileA.in");
-  seqB = read_seq("fileB.in");
+  seqA = read_seq(argv[1]);
+  seqB = read_seq(argv[2]);
 
   // find out sizes
   sizeA = strlen(seqA);
@@ -245,8 +245,8 @@ int main(int argc, char **argv)
 
   // print score
   double time = end - start;
-  printf("\nScore: %d tempo:%0.8f\n", score, time);
-
+  // printf("\nScore: %d tempo:%0.8f\n", score, time);
+  printf("%0.8f", time);
   // free score matrix
   freeScoreMatrix(scoreMatrix, sizeB);
 
