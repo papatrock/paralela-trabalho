@@ -212,7 +212,7 @@ void freeScoreMatrix(mtype **scoreMatrix, int sizeB)
 // gcc -O3 -DDEBUGMATRIX -fopenmp lcs-paralelizado.c -o lcs-para -lm
 int main(int argc, char **argv)
 {
-  omp_set_num_threads(NUM_THREADS);
+  omp_set_num_threads(atoi(argv[3]));
   // sequence pointers for both sequences
   char *seqA, *seqB;
 
