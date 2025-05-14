@@ -3,7 +3,7 @@
 THREADS_NUMBERS=(1 2 4 8 16)
 INPUT_DIR="entradas"
 OUTPUT_DIR="saidas"
-INPUTS="size100 size1k"
+INPUTS="size100 size1k size10k size20k size40k"
 
 OUTPUT_FILE="${OUTPUT_DIR}/saida.out"
 mkdir -p "${OUTPUT_DIR}"
@@ -39,14 +39,14 @@ done
 
 # média e desvio padrão
 echo -e "\n\nMÉDIAS e DESVIO PADRÃO:" >> "$OUTPUT_FILE"
-echo -n "N         |" >> "$OUTPUT_FILE"
+echo -n "N          |" >> "$OUTPUT_FILE"
 for input in $INPUTS; do
   size_label=$(echo "$input" | sed 's/size//')
-  printf "             %-27s |" "$size_label" >> "$OUTPUT_FILE"
+  printf "              %-25s |" "$size_label" >> "$OUTPUT_FILE"
 done
 echo "" >> "$OUTPUT_FILE"
 
-echo "----------------------------------------------------------------------------" >> "$OUTPUT_FILE"
+echo "--------------------------------------------------------------------------------------------------------------------------------------------------" >> "$OUTPUT_FILE"
 
 
 awk -F'\\|' '
